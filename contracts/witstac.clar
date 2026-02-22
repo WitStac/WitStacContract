@@ -228,9 +228,10 @@
 
 ;; Fund the reward pool by minting WIT tokens into this contract.
 ;; Anyone can call this to top up the pool.
+;; contract-caller inside wit-token will be .witstac automatically (cross-contract call).
 (define-public (fund-reward-pool (amount uint))
-  (begin
-    (try! (contract-call? .wit-token mint amount (as-contract tx-sender)))
+  (let ((contract-address (as-contract tx-sender)))
+    (try! (contract-call? .wit-token mint amount contract-address))
     (var-set reward-pool-balance (+ (var-get reward-pool-balance) amount))
     (ok (var-get reward-pool-balance))))
 
@@ -264,7 +265,7 @@
 ;; WIT reward paid only on the first correct answer per question per address.
 (define-public (reveal-answer
     (question-id uint)
-    (answer      (string-ascii 128)))
+    (answer      (buff 128)))
   (let (
     (q            (unwrap! (map-get? questions { question-id: question-id })
                            err-question-not-found))
@@ -327,15 +328,15 @@
 
         ;; Pay WIT reward (first correct attempt only)
         (if (and is-correct (not already-correct))
-          (let ((player tx-sender))
-            (if (>= (var-get reward-pool-balance) final-reward)
+          (if (>= (var-get reward-pool-balance) final-reward)
+            (let ((recipient tx-sender))
               (begin
                 (var-set reward-pool-balance (- (var-get reward-pool-balance) final-reward))
-                (try! (as-contract (contract-call? .wit-token transfer final-reward tx-sender player none)))
-                (ok true))
-              ;; Pool too low - win recorded, payout deferred
-              (ok true)))
-          (ok is-correct)))))))
+                (try! (as-contract (contract-call? .wit-token transfer final-reward tx-sender recipient none)))
+                (ok true)))
+            ;; Pool too low - win recorded, payout deferred
+            (ok true))
+          (ok is-correct))))))
 
 ;; ============================================================
 ;; Read-Only Functions
