@@ -393,3 +393,24 @@
 ;; Get the active commitment for a player+question pair (if any)
 (define-read-only (get-commitment (player principal) (question-id uint))
   (map-get? commitments { player: player, question-id: question-id }))
+
+;; ============================================================
+;; Utility Testing Functions
+;; ============================================================
+
+(define-data-var test-counter uint u0)
+
+(define-public (increment)
+  (begin
+    (var-set test-counter (+ (var-get test-counter) u1))
+    (ok (var-get test-counter))
+  )
+)
+
+(define-public (decrement)
+  (begin
+    (asserts! (> (var-get test-counter) u0) (err u0))
+    (var-set test-counter (- (var-get test-counter) u1))
+    (ok (var-get test-counter))
+  )
+)
